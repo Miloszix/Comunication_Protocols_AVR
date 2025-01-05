@@ -4,11 +4,11 @@
 
 #include "CommunicationProtocol.h"
 
-class I2C : public CommunicationProtocol {
-private:
-    uint32_t bitrate;      // Prędkość transmisji I2C
-    uint8_t prescaler;     // Przeskalowanie zegara TWI
+#ifndef SCL_CLK
+#define SCL_CLK 100000UL
+#endif
 
+class I2C : public CommunicationProtocol {
 public:
 
     //napisać konstruktor
@@ -25,25 +25,6 @@ public:
     void write_block(uint8_t slave_address, uint8_t reg, uint8_t* data, uint8_t size);
     void read_block(uint8_t slave_address, uint8_t reg, uint8_t* data, uint8_t size);
     
-    void setBitrate(uint32_t b) {
-        bitrate = b;
-        init();
-    }
-
-    // Setter dla preskalera
-    void setPrescaler(uint8_t p) {
-        prescaler = p;
-        init();
-    }
-
-    uint32_t getBitrate() const {
-        return bitrate;
-    }
-
-    // Getter dla preskalera
-    uint8_t getPrescaler() const {
-        return prescaler;
-    }
 };
 
 #endif // I2C_H

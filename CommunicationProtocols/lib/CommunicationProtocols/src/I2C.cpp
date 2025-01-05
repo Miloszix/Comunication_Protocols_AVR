@@ -2,11 +2,11 @@
 #include "I2C.h"
 #include <avr/io.h>
 
-#define TWBR_VALUE 72
+#define BITRATE(TWSR) ((F_CPU / SCL_CLK) - 16) / (2 * ((1 << ((TWSR) & 0x03))*(1 << ((TWSR) & 0x03))))
 
 void I2C::init() {
     TWSR = 0x00;
-    TWBR = TWBR_VALUE;
+    TWBR = BITRATE(TWSR);  // Obliczenie wartości dla TWBR
     TWCR = (1 << TWEN);
 }
 
