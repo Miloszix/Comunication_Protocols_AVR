@@ -10,9 +10,6 @@
 
 class I2C : public CommunicationProtocol {
 public:
-
-    //napisać konstruktor
-
     void init() override;
     void start() override;
     void stop() override;
@@ -24,7 +21,6 @@ public:
     uint8_t read_register(uint8_t slave_Address, uint8_t reg);
     void write_block(uint8_t slave_address, uint8_t reg, uint8_t* data, uint8_t size);
     void read_block(uint8_t slave_address, uint8_t reg, uint8_t* data, uint8_t size);
-    
 };
 
 #endif // I2C_H
