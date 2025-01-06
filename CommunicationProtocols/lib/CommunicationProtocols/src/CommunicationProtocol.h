@@ -6,11 +6,11 @@
 
 class CommunicationProtocol {
 public:
-    virtual void init() = 0;             // Wirtualna metoda inicjalizacji
-    virtual void start() = 0;
-    virtual void stop() = 0;
+    virtual void init() = 0;
+    // virtual void start() = 0;
+    // virtual void stop() = 0;
 
-    virtual ~CommunicationProtocol() {} // Wirtualny destruktor
+    virtual ~CommunicationProtocol() {}
 };
 
 #endif // COMMUNICATION_H

@@ -11,8 +11,8 @@
 class I2C : public CommunicationProtocol {
 public:
     void init() override;
-    void start() override;
-    void stop() override;
+    void start();
+    void stop();
     void write(uint8_t data);
     void write_data(uint8_t slave_address, uint8_t data);
     void write_register(uint8_t slave_address, uint8_t reg, uint8_t data);
