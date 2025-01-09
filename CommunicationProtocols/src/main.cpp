@@ -1,24 +1,52 @@
-#define SCL_CLK 100000UL  // 100 kHz I2C Clock
-
 #include <avr/io.h>
 #include <util/delay.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "UART.h"
 #include "I2C.h"
+#include "SPI.h"
+#include "sensor.h"
 
-// void setup(){
-    
-// }
+#define SCL_CLK 100000UL 
 
 int main() {
-    UART uart(0, 9600); // USART0 z prędkością 9600
+    double temperature;
+    double humidity;
+    double pressure;
+
+    mm::UART uart;
     uart.init();
 
-    uart.transmitString("Hello, UART!\n");
+    mm::I2C i2c;
+    i2c.init();
 
-    char buffer[50];
-    uart.receiveString(buffer, 50);
-    
-    while (1) {
+    uart.transmitString("Hello, UART!\n");
+    initBME280();
+    char buffer[20];
+
+    while(1){
+        readRawData(); 
+
+        temperature = getTemp();
+        humidity = getHum(); 
+        pressure = getPress();
+
+        dtostrf(temperature, 0, 2, buffer); // Convert temperature to string with 2 decimal places
+        uart.transmitString("Tempreture: ");
+        uart.transmitString(buffer);
+        uart.transmitString(" C\n");
+
+        dtostrf(humidity, 0, 2, buffer); // Convert humidity to string with 2 decimal places
+        uart.transmitString("Humidity: ");
+        uart.transmitString(buffer);
+        uart.transmitString(" %\n");
+
+        dtostrf(pressure, 0, 2, buffer); // Convert pressure to string with 2 decimal places
+        uart.transmitString("Pressure: ");
+        uart.transmitString(buffer);
+        uart.transmitString(" hPa\n");
+
+        _delay_ms(1000);
     }
 }
