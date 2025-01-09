@@ -3,10 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "UART.h"
-#include "I2C.h"
-#include "SPI.h"
 #include "sensor.h"
+#include "communication.h"
+//#include "sensorSPI.h"
 
 #define SCL_CLK 100000UL 
 
@@ -20,6 +19,9 @@ int main() {
 
     mm::I2C i2c;
     i2c.init();
+
+    // mm::SPI spi;
+    // spi.init();
 
     uart.transmitString("Hello, UART!\n");
     initBME280();

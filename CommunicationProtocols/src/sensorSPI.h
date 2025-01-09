@@ -1,15 +1,14 @@
 #include <avr/io.h>
 #include <util/delay.h>
-#include "I2C.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "SPI.h"
 #include "UART.h"
 
 // Type definitions for various sensor data types
 typedef int32_t BME280_S32_t;
 typedef int64_t BME280_S64_t;
 typedef uint32_t BME280_U32_t;
-
-// BME280 I2C address
-#define BME280_ADDR 0x76
 
 // Calibration data for the BME280 sensor
 uint16_t dig_T1;
@@ -24,8 +23,8 @@ double temp;
 double press;
 double hum;
 
-// Create instances for I2C and UART communication
-mm::I2C i2c;
+// Create instances for SPI and UART communication
+mm::SPI spi;
 mm::UART uart;
 
 /**
@@ -35,7 +34,7 @@ mm::UART uart;
  */
 void writeRegister(uint8_t reg, uint8_t value)
 {
-    i2c.write_register(BME280_ADDR, reg, value);
+    spi.writeRegister(reg, value);
 }
 
 /**
@@ -45,18 +44,7 @@ void writeRegister(uint8_t reg, uint8_t value)
  */
 uint8_t readRegister(uint8_t reg)
 {
-    return i2c.read_register(BME280_ADDR, reg);
-}
-
-/**
- * @brief Reads a block of data from a specified register on the BME280 sensor.
- * @param reg Starting register address to read from.
- * @param len Number of bytes to read.
- * @param data Pointer to the array to store the read data.
- */
-void readBlock(uint8_t reg, uint8_t len, uint8_t *data)
-{
-    i2c.read_block(BME280_ADDR, reg, data, len);
+    return spi.readRegister(reg);
 }
 
 /**
@@ -94,19 +82,19 @@ void readCalibrationData()
  */
 void initBME280()
 {
+    // Configure the sensor
+    writeRegister(0xF5, 0b10101100); // Configure the sensor's standby time and filter
+    _delay_ms(10);
+    writeRegister(0xF2, 0b101); // Set humidity oversampling
+    _delay_ms(10);
+    writeRegister(0xF4, 0b01101101); // Set pressure and temperature oversampling, mode to normal
+    _delay_ms(10);
+
     uint8_t id = readRegister(0xD0); // Read the device ID
     if (id == 0x60)                  // Check if the sensor is BME280
     {
         uart.transmitString("BME280 detected!"); // Notify via UART if BME280 is detected
     }
-
-    // Configure the sensor
-    writeRegister(0xF2, 0b101); // Set humidity oversampling
-    _delay_ms(10);
-    writeRegister(0xF4, 0b01101101); // Set pressure and temperature oversampling, mode to normal
-    _delay_ms(10);
-    writeRegister(0xF5, 0b10101100); // Configure the sensor's standby time and filter
-    _delay_ms(10);
 
     readCalibrationData(); // Read the calibration data
 }
@@ -126,7 +114,8 @@ BME280_S32_t BME280_compensate_T_int32(BME280_S32_t adc_T)
     // Temperature compensation algorithm
     var1 = ((((adc_T >> 3) - ((BME280_S32_t)dig_T1 << 1))) * ((BME280_S32_t)dig_T2)) >> 11;
     var2 = (((((adc_T >> 4) - ((BME280_S32_t)dig_T1)) * ((adc_T >> 4) - ((BME280_S32_t)dig_T1))) >> 12) *
-            ((BME280_S32_t)dig_T3)) >> 14;
+            ((BME280_S32_t)dig_T3)) >>
+           14;
     t_fine = var1 + var2;        // Fine temperature value for compensation
     T = (t_fine * 5 + 128) >> 8; // Final compensated temperature value
     return T;
@@ -174,9 +163,17 @@ BME280_U32_t BME280_compensate_H_int32(BME280_S32_t adc_H)
     // Humidity compensation algorithm
     v_x1_u32r = (t_fine - ((BME280_S32_t)76800));
     v_x1_u32r = (((((adc_H << 14) - (((BME280_S32_t)dig_H4) << 20) - (((BME280_S32_t)dig_H5) * v_x1_u32r)) +
-                ((BME280_S32_t)16384)) >> 15) * (((((((v_x1_u32r * ((BME280_S32_t)dig_H6)) >> 10) * (((v_x1_u32r *
-                ((BME280_S32_t)dig_H3)) >> 11) + ((BME280_S32_t)32768))) >> 10) + ((BME280_S32_t)2097152)) *
-                ((BME280_S32_t)dig_H2) +8192) >> 14));
+                   ((BME280_S32_t)16384)) >>
+                  15) *
+                 (((((((v_x1_u32r * ((BME280_S32_t)dig_H6)) >> 10) * (((v_x1_u32r *
+                                                                        ((BME280_S32_t)dig_H3)) >>
+                                                                       11) +
+                                                                      ((BME280_S32_t)32768))) >>
+                     10) +
+                    ((BME280_S32_t)2097152)) *
+                       ((BME280_S32_t)dig_H2) +
+                   8192) >>
+                  14));
 
     // Apply the limits to the humidity value
     v_x1_u32r = (v_x1_u32r - (((((v_x1_u32r >> 15) * (v_x1_u32r >> 15)) >> 7) * ((BME280_S32_t)dig_H1)) >> 4));
@@ -191,6 +188,7 @@ BME280_U32_t BME280_compensate_H_int32(BME280_S32_t adc_H)
 void readRawData()
 {
     uint32_t data[8];
+    char buffer[128];
 
     // Start a measurement
     writeRegister(0xF4, 0b01101101);
@@ -212,6 +210,12 @@ void readRawData()
     temp = BME280_compensate_T_int32(uint32_t(temp_raw)) / 100.0;
     press = BME280_compensate_P_int64(uint32_t(press_raw)) / 256.0 / 100.0;
     hum = BME280_compensate_H_int32(hum_raw) / 1024.0;
+
+    sprintf(buffer, "Raw Data:\nPress: 0x%06lX\nTemp: 0x%06lX\nHum: 0x%04lX\n",
+            press_raw, temp_raw, hum_raw);
+
+    // Wysłanie przez UART
+    uart.transmitString(buffer);
 }
 
 /**

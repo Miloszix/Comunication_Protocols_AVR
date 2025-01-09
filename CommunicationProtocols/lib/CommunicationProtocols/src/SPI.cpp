@@ -41,15 +41,16 @@ uint8_t mm::SPI::recive()
 
 void mm::SPI::writeRegister(uint8_t reg, uint8_t value)
 {
+    reg &= 0x7F;
     PORTB &= ~(1 << ss_pin);
     SPI::write(reg);
     SPI::write(value);
-
     PORTB |= (1 << ss_pin);
 }
 
 uint8_t mm::SPI::readRegister(uint8_t reg)
 {
+    reg |= 0x80;
     PORTB &= ~(1 << ss_pin);
     SPI::write(reg);
     return SPI::read();
